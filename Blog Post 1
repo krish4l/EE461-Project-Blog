@@ -1,0 +1,92 @@
+Initial Code for data exploration and cleaning
+
+% Import Data without Ripples
+
+warning('off', 'all');
+data1 = readtable('FC1_Ageing_part1.xlsx') ;
+data2 = readtable('FC1_Ageing_part2.xlsx') ;
+data3 = readtable('FC1_Ageing_part3.xlsx') ;
+
+data = [data1; data2; data3]; % Combining all the data into one seperate table
+
+% Check for missing data
+
+TF = ismissing(data);
+
+% Removal of any missing data 
+
+data = rmmissing(data,"DataVariables",["U1_V_","U2_V_","U3_V_","U4_V_","U5_V_","Utot_V_","J_A_cm__","I_A_","TinH2__C_","ToutH2__C_","TinAIR__C_","ToutAIR__C_",]) ;
+
+% Normalizing the data
+
+X = data{:,:} ;
+mu = mean(X); % Row vector of column (feature) means
+r = range(X); % Row vector of column ranges
+X = (X-mu)./r; % Scaled feature matrix
+
+
+% Computing the pca of the normalized data
+
+[coeff, score, latent , tsquared, explained, mu] = pca(X) ;
+
+% Pareto chart of principal components
+
+figure;
+paretochart = pareto(explained,0.95);
+xlabel('Principal Components');
+ylabel('Cumulative Variance (%)');
+yline(95, 'k--', 'LineWidth', 2);
+barHandle = paretochart(1);
+set(barHandle, 'FaceColor', [0.7, 0.3, 0.5]); 
+
+[P,S,V] = pca(X) ;
+figure;
+
+xLabels = compose("PC%d", 1:size(P, 2)); % Define xLabels as PC1,PC2...PCn
+yLabels = data.Properties.VariableNames; % Define yLabels as the feature names
+
+% Generating the heatmap
+h = heatmap(P, 'XDisplayLabels', xLabels, 'YDisplayLabels', yLabels ,'Colormap', cool(50));
+
+% Set the figure to be maximized and normalized
+set(gcf, 'Units', 'Normalized', 'OuterPosition', [0 0 1 1]);
+
+
+% Transform the data into an array
+
+numericData = table2array(data); 
+
+% Compute the correlation matrix
+correlationMatrix = corr(numericData);
+
+figure;
+heatmap(correlationMatrix, 'Colormap', parula);
+
+%% Codes up till this point are used to clean the data, do PCA analysis, obtain the principle components, as well as do correlation analysis between the independent variable time and features
+%% The rest of the codes visualize the data and use plots to differentiate the features
+
+Time series plot of all features
+
+
+featurecount = length(features); % Number of features
+rows = ceil(sqrt(featurecount)); % Squareroot of the number of features rounded to highest interger
+cols = ceil(featurecount / rows); % Number of features divided by the rows rounded to highest integer
+
+% The for loop cycles between the number of features and plots the
+% timeseries graphs of each feature
+figure;
+for i = 1:featurecount
+    subplot(rows, cols, i);
+    plot(data.Time_h_,data.(features{i})); 
+    ylabel(features{i}, 'Interpreter', 'none');
+    xlabel('Time (h)');
+    grid on
+end
+
+Biplot
+% Biplot of the features in relation to the first three principle
+% components
+
+features = string(data.Properties.VariableNames) ;
+figure;
+biplot(coeff(:, 1:3), 'Scores', score(:, 1:3),'VarLabels',features)
